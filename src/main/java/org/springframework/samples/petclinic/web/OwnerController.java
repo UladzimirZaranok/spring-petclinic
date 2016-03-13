@@ -91,7 +91,7 @@ public class OwnerController {
         if (results.isEmpty()) {
             // no owners found
         	// new comment
-        	// comment2
+        	// comment3
             result.rejectValue("lastName", "notFound", "not found");
             return "owners/findOwners";
         } else if (results.size() == 1) {
