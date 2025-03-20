@@ -73,22 +73,29 @@ class VisitControllerTests {
 
 	@Test
 	void testProcessNewVisitFormSuccess() throws Exception {
-		mockMvc
-			.perform(post("/owners/{ownerId}/pets/{petId}/visits/new", TEST_OWNER_ID, TEST_PET_ID)
-				.param("name", "George")
-				.param("description", "Visit Description"))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(view().name("redirect:/owners/{ownerId}"));
-	}
++                mockMvc.perform(post("/owners/{ownerId}/pets/{petId}/visits/new", TEST_OWNER_ID, TEST_PET_ID)
++                                .param("date", "2023-11-15")
++                                .param("description", "Visit Description"))
++                        .andExpect(status().is3xxRedirection())
++                        .andExpect(view().name("redirect:/owners/" + TEST_OWNER_ID))
++                        .andExpect(model().attribute("message", "Your visit has been booked")); // Check success message
++        }
 
-	@Test
-	void testProcessNewVisitFormHasErrors() throws Exception {
-		mockMvc
-			.perform(post("/owners/{ownerId}/pets/{petId}/visits/new", TEST_OWNER_ID, TEST_PET_ID).param("name",
-					"George"))
-			.andExpect(model().attributeHasErrors("visit"))
-			.andExpect(status().isOk())
-			.andExpect(view().name("pets/createOrUpdateVisitForm"));
-	}
++        @Test
++        void testInitNewVisitFormOwnerNotFound() throws Exception {
++                given(this.owners.findById(TEST_OWNER_ID)).willReturn(Optional.empty()); // Simulate owner not found
++                mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/visits/new", TEST_OWNER_ID, TEST_PET_ID))
++                        .andExpect(status().isNotFound())
++                        .andExpect(view().name("error"));
++        }
+
++        @Test
++        void testProcessNewVisitFormHasErrors() throws Exception {
++                mockMvc.perform(post("/owners/{ownerId}/pets/{petId}/visits/new", TEST_OWNER_ID, TEST_PET_ID)
++                                .param("description", "Visit Description")) // Missing date
++                        .andExpect(model().attributeHasErrors("visit"))
++                        .andExpect(status().isOk())
++                        .andExpect(view().name("pets/createOrUpdateVisitForm"));
++        }
 
 }

@@ -28,7 +28,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
 import jakarta.validation.Valid;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
  * @author Juergen Hoeller
@@ -39,6 +40,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  * @author Wick Dynex
  */
 @Controller
+@RequestMapping("/owners/{ownerId}")
 class VisitController {
 
 	private final OwnerRepository owners;
@@ -61,14 +63,13 @@ class VisitController {
 	 */
 	@ModelAttribute("visit")
 	public Visit loadPetWithVisit(@PathVariable("ownerId") int ownerId, @PathVariable("petId") int petId,
-			Map<String, Object> model) {
-		Optional<Owner> optionalOwner = owners.findById(ownerId);
-		Owner owner = optionalOwner.orElseThrow(() -> new IllegalArgumentException(
-				"Owner not found with id: " + ownerId + ". Please ensure the ID is correct "));
+                        Model model) {
+                Owner owner = this.owners.findById(ownerId).orElseThrow(() -> new OwnerNotFoundException(
+                                "Owner not found with id: " + ownerId));
 
 		Pet pet = owner.getPet(petId);
-		model.put("pet", pet);
-		model.put("owner", owner);
+                model.addAttribute("pet", pet);
+                model.addAttribute("owner", owner);
 
 		Visit visit = new Visit();
 		pet.addVisit(visit);
@@ -77,24 +78,26 @@ class VisitController {
 
 	// Spring MVC calls method loadPetWithVisit(...) before initNewVisitForm is
 	// called
-	@GetMapping("/owners/{ownerId}/pets/{petId}/visits/new")
-	public String initNewVisitForm() {
+        @GetMapping("/pets/{petId}/visits/new")
+        public String initNewVisitForm(@PathVariable("ownerId") int ownerId, @PathVariable("petId") int petId) {
 		return "pets/createOrUpdateVisitForm";
 	}
 
 	// Spring MVC calls method loadPetWithVisit(...) before processNewVisitForm is
 	// called
-	@PostMapping("/owners/{ownerId}/pets/{petId}/visits/new")
-	public String processNewVisitForm(@ModelAttribute Owner owner, @PathVariable int petId, @Valid Visit visit,
-			BindingResult result, RedirectAttributes redirectAttributes) {
+        @PostMapping("/pets/{petId}/visits/new")
+        public String processNewVisitForm(@PathVariable("ownerId") int ownerId, @PathVariable int petId, @Valid Visit visit,
+                        BindingResult result, Model model) {
+                Owner owner = this.owners.findById(ownerId).orElseThrow(() -> new OwnerNotFoundException(
+                                "Owner not found with id: " + ownerId));
 		if (result.hasErrors()) {
 			return "pets/createOrUpdateVisitForm";
 		}
 
 		owner.addVisit(petId, visit);
 		this.owners.save(owner);
-		redirectAttributes.addFlashAttribute("message", "Your visit has been booked");
-		return "redirect:/owners/{ownerId}";
+                model.addAttribute("message", "Your visit has been booked");
+                return "redirect:/owners/" + ownerId;
 	}
 
 }

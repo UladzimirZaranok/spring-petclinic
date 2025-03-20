@@ -41,13 +41,16 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
  * Test class for {@link OwnerController}
@@ -119,7 +122,8 @@ class OwnerControllerTests {
 				.param("address", "123 Caramel Street")
 				.param("city", "London")
 				.param("telephone", "1316761638"))
-			.andExpect(status().is3xxRedirection());
+                        .andExpect(status().is3xxRedirection())
+                        .andExpect(view().name("redirect:/owners/" + TEST_OWNER_ID));
 	}
 
 	@Test
@@ -191,14 +195,14 @@ class OwnerControllerTests {
 				.param("city", "London")
 				.param("telephone", "1616291589"))
 			.andExpect(status().is3xxRedirection())
-			.andExpect(view().name("redirect:/owners/{ownerId}"));
+                        .andExpect(view().name("redirect:/owners/" + TEST_OWNER_ID));
 	}
 
 	@Test
 	void testProcessUpdateOwnerFormUnchangedSuccess() throws Exception {
 		mockMvc.perform(post("/owners/{ownerId}/edit", TEST_OWNER_ID))
 			.andExpect(status().is3xxRedirection())
-			.andExpect(view().name("redirect:/owners/{ownerId}"));
+                        .andExpect(view().name("redirect:/owners/" + TEST_OWNER_ID));
 	}
 
 	@Test
@@ -232,22 +236,25 @@ class OwnerControllerTests {
 
 	@Test
 	public void testProcessUpdateOwnerFormWithIdMismatch() throws Exception {
-		int pathOwnerId = 1;
+                mockMvc
+                        .perform(post("/owners/{ownerId}/edit", TEST_OWNER_ID)
+                                .param("id", String.valueOf(2)) // Mismatched ID
+                                .param("firstName", "John")
+                                .param("lastName", "Doe")
+                                .param("address", "Center Street")
+                                .param("city", "New York")
+                                .param("telephone", "0123456789"))
+                        .andExpect(status().isOk())
++                        .andExpect(model().attributeHasFieldErrors("owner", "id"))
++                        .andExpect(view().name("owners/createOrUpdateOwnerForm"));
++        }
 
-		Owner owner = new Owner();
-		owner.setId(2);
-		owner.setFirstName("John");
-		owner.setLastName("Doe");
-		owner.setAddress("Center Street");
-		owner.setCity("New York");
-		owner.setTelephone("0123456789");
-
-		when(owners.findById(pathOwnerId)).thenReturn(Optional.of(owner));
-
-		mockMvc.perform(MockMvcRequestBuilders.post("/owners/{ownerId}/edit", pathOwnerId).flashAttr("owner", owner))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/owners/" + pathOwnerId + "/edit"))
-			.andExpect(flash().attributeExists("error"));
-	}
++        @Test
++        void testShowOwnerNotFound() throws Exception {
++                given(this.owners.findById(anyInt())).willReturn(Optional.empty());
++                mockMvc.perform(get("/owners/{ownerId}", 999)).andExpect(status().isNotFound())
++                        .andExpect(model().attributeExists("errorMessage"))
++                        .andExpect(view().name("error"));
++        }
 
 }
